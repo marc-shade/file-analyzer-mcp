@@ -163,8 +163,9 @@ def calculate_entropy(data: bytes) -> float:
     return entropy
 
 
-@mcp.tool()
-async def identify_file(file_path: str) -> str:
+# Core async functions (testable without MCP decorator)
+
+async def _identify_file_impl(file_path: str) -> str:
     """
     Identify a file's true type using magic number analysis.
 
@@ -220,8 +221,7 @@ async def identify_file(file_path: str) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-@mcp.tool()
-async def calculate_file_hashes(file_path: str) -> str:
+async def _calculate_file_hashes_impl(file_path: str) -> str:
     """
     Calculate MD5, SHA1, and SHA256 hashes of a file.
 
@@ -249,8 +249,7 @@ async def calculate_file_hashes(file_path: str) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-@mcp.tool()
-async def analyze_entropy(file_path: str) -> str:
+async def _analyze_entropy_impl(file_path: str) -> str:
     """
     Analyze file entropy to detect encryption or packing.
 
@@ -299,8 +298,7 @@ async def analyze_entropy(file_path: str) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-@mcp.tool()
-async def scan_directory(
+async def _scan_directory_impl(
     directory: str,
     recursive: bool = True,
     check_mismatches: bool = True,
@@ -384,8 +382,7 @@ async def scan_directory(
     return json.dumps(results, indent=2)
 
 
-@mcp.tool()
-async def check_file_reputation(file_path: str) -> str:
+async def _check_file_reputation_impl(file_path: str) -> str:
     """
     Check a file's hash against threat intelligence.
 
@@ -426,8 +423,7 @@ async def check_file_reputation(file_path: str) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-@mcp.tool()
-async def get_magic_signatures() -> str:
+async def _get_magic_signatures_impl() -> str:
     """
     Get list of all supported magic number signatures.
 
@@ -447,6 +443,104 @@ async def get_magic_signatures() -> str:
         "total_signatures": len(signatures),
         "signatures": signatures
     }, indent=2)
+
+
+# MCP Tool wrappers - thin wrappers around the implementation functions
+
+@mcp.tool()
+async def identify_file(file_path: str) -> str:
+    """
+    Identify a file's true type using magic number analysis.
+
+    Args:
+        file_path: Path to the file to analyze
+
+    Returns:
+        JSON with file type identification, magic bytes, and metadata
+    """
+    return await _identify_file_impl(file_path)
+
+
+@mcp.tool()
+async def calculate_file_hashes(file_path: str) -> str:
+    """
+    Calculate MD5, SHA1, and SHA256 hashes of a file.
+
+    Args:
+        file_path: Path to the file
+
+    Returns:
+        JSON with hash values
+    """
+    return await _calculate_file_hashes_impl(file_path)
+
+
+@mcp.tool()
+async def analyze_entropy(file_path: str) -> str:
+    """
+    Analyze file entropy to detect encryption or packing.
+
+    High entropy (>7.0) may indicate:
+    - Encrypted content
+    - Compressed/packed executables
+    - Random data
+
+    Args:
+        file_path: Path to the file
+
+    Returns:
+        JSON with entropy analysis
+    """
+    return await _analyze_entropy_impl(file_path)
+
+
+@mcp.tool()
+async def scan_directory(
+    directory: str,
+    recursive: bool = True,
+    check_mismatches: bool = True,
+    max_files: int = 1000
+) -> str:
+    """
+    Scan a directory for files with suspicious characteristics.
+
+    Args:
+        directory: Path to scan
+        recursive: Scan subdirectories
+        check_mismatches: Check for extension mismatches
+        max_files: Maximum files to scan
+
+    Returns:
+        JSON with scan results including suspicious files
+    """
+    return await _scan_directory_impl(directory, recursive, check_mismatches, max_files)
+
+
+@mcp.tool()
+async def check_file_reputation(file_path: str) -> str:
+    """
+    Check a file's hash against threat intelligence.
+
+    Calculates hashes and provides guidance for manual checks.
+
+    Args:
+        file_path: Path to the file
+
+    Returns:
+        JSON with hashes and reputation check guidance
+    """
+    return await _check_file_reputation_impl(file_path)
+
+
+@mcp.tool()
+async def get_magic_signatures() -> str:
+    """
+    Get list of all supported magic number signatures.
+
+    Returns:
+        JSON with all recognized file signatures
+    """
+    return await _get_magic_signatures_impl()
 
 
 # Import password analyzer tools
